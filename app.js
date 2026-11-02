@@ -1,5 +1,5 @@
 (()=>{'use strict';
-const STORE='chordoku.save.v1',BEST='chordoku.best.v1';
+const STORE='chordoku.save.v1',BEST='chordoku.best.v1',WAKE_PREF='chordoku.keepScreenAwake.v1';
 const ROOTS=[['C',0],['Db',1],['D',2],['Eb',3],['E',4],['F',5],['Gb',6],['G',7],['Ab',8],['A',9],['Bb',10],['B',11]];
 const SUDOKU_LEVELS=[
  {id:'easy',label:'Лёгкая',range:[40,44]},
@@ -26,7 +26,7 @@ const QUALITIES=[
 const SOLVED=['534678912','672195348','198342567','859761423','426853791','713924856','961537284','287419635','345286179'].map(r=>r.split('').map(Number));
 const PUZZLE=['530070000','600195000','098000060','800060003','400803001','700020006','060000280','000419005','000080079'].map(r=>r.split('').map(Number));
 const NAV=[['До',0],['Ре♭',1],['Ре',2],['Ми♭',3],['Ми',4],['Фа',5],['Соль♭',6],['Соль',7],['Ля♭',8]],CHORD_WINDOW_MS=220,TAP_WINDOW_MS=520;
-let game,midi=null,midiInputs=new Map(),midiRequest=null,midiError='',held=new Set(),pedal=false,noteBatch=[],noteTimer=null,pendingTap=null,tapTimer=null,notification=null,overlaySaved=false,timerNode=null;
+let game,midi=null,midiInputs=new Map(),midiRequest=null,midiError='',wakeLock=null,wakeRequest=null,wakeEnabled=true,wakeError='',held=new Set(),pedal=false,noteBatch=[],noteTimer=null,pendingTap=null,tapTimer=null,notification=null,overlaySaved=false,timerNode=null;
 const $=s=>document.querySelector(s),cloneGrid=g=>g.map(r=>r.slice()),shuffle=a=>{const b=[...a];for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]]}return b},randomBetween=(min,max)=>min+Math.floor(Math.random()*(max-min+1));
 function levelIndex(level){const i=SUDOKU_LEVELS.findIndex(x=>x.id===level);return i<0?0:i}
 function groupOrder(){return shuffle([0,1,2]).flatMap(group=>shuffle([0,1,2]).map(part=>group*3+part))}
@@ -203,8 +203,8 @@ function renderModal(){
 }
 function confirmNew(){openNewGameSettings({})}
 function settings(){
- modal('<h2>Управление MIDI</h2><p>Сейчас: судоку — '+sudokuName(game.sudokuLevel)+'; аккорды — '+sudokuName(game.chordLevel)+'.</p><p>Без педали ноты До–Ля♭ выбирают блоки 1–9. При удержании педали они выбирают клетки 1–9 внутри выбранного блока. Три быстрых До — Undo, Ре — Redo, Соль — очистить выбранную клетку.</p><p>Перед распознаванием одиночной ноты приложение ждёт остальные ноты аккорда. MIDI работает на защищённой HTTPS-странице в браузерах с Web MIDI.</p><div class="setting-row"><span>Мгновенная проверка</span><button class="toggle '+(game.strict?'on':'')+'" id="instantToggle" aria-label="Мгновенная проверка"></button></div><div class="dialog-actions"><button class="btn primary" id="settingsDone">Готово</button></div>');
- $('#instantToggle').onclick=()=>{game.strict=!game.strict;$('#instantToggle').classList.toggle('on',game.strict);save()};$('#settingsDone').onclick=()=>render()
+ modal('<h2>Управление MIDI</h2><p>Сейчас: судоку — '+sudokuName(game.sudokuLevel)+'; аккорды — '+sudokuName(game.chordLevel)+'.</p><p>Без педали ноты До–Ля♭ выбирают блоки 1–9. При удержании педали они выбирают клетки 1–9 внутри выбранного блока. Три быстрых До — Undo, Ре — Redo, Соль — очистить выбранную клетку.</p><p>Перед распознаванием одиночной ноты приложение ждёт остальные ноты аккорда. MIDI работает на защищённой HTTPS-странице в браузерах с Web MIDI.</p><div class="setting-row"><span>Мгновенная проверка</span><button class="toggle '+(game.strict?'on':'')+'" id="instantToggle" aria-label="Мгновенная проверка"></button></div><div class="setting-row"><span>Не выключать экран</span><button class="toggle '+(wakeEnabled?'on':'')+'" id="wakeToggle" aria-label="Не выключать экран"'+(!navigator.wakeLock?' disabled':'')+'></button></div><p id="wakeStatus" class="wake-status"></p><div class="dialog-actions"><button class="btn primary" id="settingsDone">Готово</button></div>');
+ $('#instantToggle').onclick=()=>{game.strict=!game.strict;$('#instantToggle').classList.toggle('on',game.strict);save()};$('#wakeToggle').onclick=()=>setWakeLockEnabled(!wakeEnabled);$('#settingsDone').onclick=()=>render();refreshWakeLockUI()
 }
 function selectPitch(pc){
  const index=NAV.findIndex(x=>x[1]===pc);if(index<0)return;
@@ -232,6 +232,10 @@ async function connect(){
 }
 function updateInputs(){if(!midi)return;const next=new Map();for(const input of midi.inputs.values()){input.onmidimessage=onMidi;next.set(input.id,input)}for(const [id,input] of midiInputs)if(!next.has(id))input.onmidimessage=null;midiInputs=next;const el=$('#midiStatus');if(el)el.textContent=midiStatusText();const button=$('#connect');if(button)button.textContent=midi?'Переподключить MIDI':'Подключить MIDI'}
 async function restoreGrantedMidiAccess(){if(!window.isSecureContext||!navigator.requestMIDIAccess||!navigator.permissions?.query)return;try{const permission=await navigator.permissions.query({name:'midi',sysex:false});if(permission.state==='granted'&&!midi){try{await requestMidiAccess()}catch{}}}catch{}}
+function refreshWakeLockUI(){const toggle=$('#wakeToggle'),status=$('#wakeStatus');if(toggle){toggle.classList.toggle('on',wakeEnabled);toggle.disabled=!navigator.wakeLock}if(status){status.textContent=!navigator.wakeLock?'Этот браузер не поддерживает удержание экрана.':!wakeEnabled?'Выключено.':wakeLock&&!wakeLock.released?'Экран будет оставаться включённым, пока эта вкладка активна.':wakeError||'Экран включится, когда вкладка будет активна.'}}
+function releaseWakeLock(){const current=wakeLock;wakeLock=null;if(current&&!current.released)current.release().catch(()=>{});refreshWakeLockUI()}
+async function requestScreenWakeLock(){if(!wakeEnabled||document.visibilityState!=='visible')return null;if(!navigator.wakeLock){refreshWakeLockUI();return null}if(wakeLock&&!wakeLock.released)return wakeLock;if(wakeRequest)return wakeRequest;wakeError='';wakeRequest=navigator.wakeLock.request('screen').then(lock=>{if(!wakeEnabled){lock.release().catch(()=>{});return null}wakeLock=lock;lock.addEventListener('release',()=>{if(wakeLock===lock)wakeLock=null;refreshWakeLockUI()},{once:true});refreshWakeLockUI();return lock}).catch(error=>{wakeError=error?.name==='NotAllowedError'?'Браузер или система отказали. Проверь режим энергосбережения.':'Не удалось удержать экран ('+(error?.name||'ошибка')+').';return null}).finally(()=>{wakeRequest=null;refreshWakeLockUI()});return wakeRequest}
+function setWakeLockEnabled(enabled){wakeEnabled=!!enabled;wakeError='';try{localStorage.setItem(WAKE_PREF,String(wakeEnabled))}catch{}if(wakeEnabled)requestScreenWakeLock();else releaseWakeLock();refreshWakeLockUI()}
 function toggleTimer(){if(game.won)return;if(!game.timerPaused){game.elapsed=duration();game.timerPaused=true}else{game.started=Date.now();game.timerPaused=false}save();render()}
 function tickTimer(){if(!game)return;if(timerNode)timerNode.textContent=fmt(duration());const button=$('#timerToggle');if(button){button.textContent=game.timerPaused?'▶':'Ⅱ';button.title=game.timerPaused?'Возобновить таймер':'Пауза таймера'}}
 function keyHandler(e){
@@ -242,10 +246,11 @@ function keyHandler(e){
 }
 function toast(msg){const old=$('.notice');if(old)old.remove();const n=document.createElement('div');n.className='notice';n.textContent=msg;document.body.append(n);clearTimeout(notification);notification=setTimeout(()=>n.remove(),3000)}
 function init(){
+ try{wakeEnabled=localStorage.getItem(WAKE_PREF)!=='false'}catch{wakeEnabled=true}
  const saved=load();
  if(saved){game=saved;game.elapsed=Number(game.elapsed)||0;game.started=Date.now();game.timerPaused=false;overlaySaved=true;save()}
  else{game=fresh('easy','easy');game.timerPaused=true;overlaySaved=false}
- render();restoreGrantedMidiAccess();if(!saved)openNewGameSettings({initial:true});tickTimer();setInterval(tickTimer,1000);document.addEventListener('visibilitychange',tickTimer);window.addEventListener('pagehide',save)
+ render();restoreGrantedMidiAccess();requestScreenWakeLock();if(!saved)openNewGameSettings({initial:true});tickTimer();setInterval(tickTimer,1000);document.addEventListener('visibilitychange',()=>{tickTimer();if(document.visibilityState==='visible'&&wakeEnabled)requestScreenWakeLock()});window.addEventListener('pagehide',()=>{save();releaseWakeLock()})
 }
 init();
 })();
