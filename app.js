@@ -106,10 +106,15 @@ function chordCounts(){return game.values.flat().reduce((counts,v)=>{if(v)counts
 function render(){
  if(!game)return;
  const filled=game.values.flat().filter(Boolean).length,counts=chordCounts(),selected=game.selected,sr=selected/9|0,sc=selected%9,recognizedValue=held.size?recognized([...held]):0;
- const board=game.values.flatMap((row,r)=>row.map((value,c)=>{
-  const i=r*9+c,given=!!game.puzzle[r][c],selectedCell=i===selected,related=r===sr||c===sc||((r/3|0)===(sr/3|0)&&(c/3|0)===(sc/3|0)),block=(r/3|0)*3+(c/3|0),local=(r%3)*3+c%3;
-  return '<button class="cell '+(given?'given ':'')+(selectedCell?'selected ':'')+(!selectedCell&&related?'related ':'')+(game.wrong.includes(i)?'error ':'')+(c===2||c===5?'blockedge ':'')+(r===2||r===5?'rowedge':'')+'" data-i="'+i+'"'+(value?' data-value="'+value+'"':'')+'>'+(value?'<span class="value'+(chordName(value).length>3?' long-label':'')+'">'+chordName(value)+'</span>':'<span class="pencil">'+Array.from({length:9},(_,k)=>{const name=game.candidates[r][c].includes(k+1)?chordName(k+1):'';return '<span'+(name.length>3?' class="long-label"':'')+'>'+name+'</span>'}).join('')+'</span>')+'<span class="cell-key">'+(local+1)+'</span>'+(local===0?'<span class="block-key">'+NAV[block][0]+'</span>':'')+'</button>'
- })).join('');
+ const activeBlock=(sr/3|0)*3+(sc/3|0);
+ const board=Array.from({length:9},(_,block)=>{
+  const br=(block/3|0)*3,bc=block%3*3,cells=[];
+  for(let rr=0;rr<3;rr++)for(let cc=0;cc<3;cc++){
+   const r=br+rr,c=bc+cc,value=game.values[r][c],i=r*9+c,given=!!game.puzzle[r][c],selectedCell=i===selected,related=r===sr||c===sc||((r/3|0)===(sr/3|0)&&(c/3|0)===(sc/3|0)),local=rr*3+cc;
+   cells.push('<button class="cell '+(given?'given ':'')+(selectedCell?'selected ':'')+(!selectedCell&&related?'related ':'')+(game.wrong.includes(i)?'error':'')+'" data-i="'+i+'"'+(value?' data-value="'+value+'"':'')+'>'+(value?'<span class="value'+(chordName(value).length>3?' long-label':'')+'">'+chordName(value)+'</span>':'<span class="pencil">'+Array.from({length:9},(_,k)=>{const name=game.candidates[r][c].includes(k+1)?chordName(k+1):'';return '<span'+(name.length>3?' class="long-label"':'')+'>'+name+'</span>'}).join('')+'</span>')+'<span class="cell-key">'+(local+1)+'</span></button>')
+  }
+  return '<div class="board-block"><span class="block-label'+(block===activeBlock?' active':'')+'">'+NAV[block][0]+'</span>'+cells.join('')+'</div>'
+ }).join('');
  const chordRows=game.chords.map((chord,i)=>'<button class="reference-chord" data-chord="'+(i+1)+'"><span class="reference-index">'+(i+1)+'</span><strong>'+chord.label+'</strong><span class="reference-count">'+counts[i]+'</span></button>').join('');
  const notes=[...held].sort((a,b)=>a-b).map(midiName).join(' · ');
  const keyNotes=Array.from({length:88},(_,i)=>i+21).map(n=>{const pc=n%12,black=[1,3,6,8,10].includes(pc),lit=held.has(n);return '<i class="piano-key '+(black?'black-key':'white-key')+(lit?' lit':'')+'" data-note="'+n+'" style="left:'+(black?whiteKeyIndex(n)*100/52-100/52*.32:whiteKeyIndex(n)*100/52)+'%" title="'+midiName(n)+'"></i>'}).join('');
