@@ -83,7 +83,7 @@ function randomChords(level='easy'){
 function fresh(sudokuLevel='easy',chordLevel='easy'){
  const base=randomizedBase(),puzzleDigits=puzzleAtDifficulty(base.puzzle,base.solution,sudokuLevel),chords=randomChords(chordLevel),map=shuffle([1,2,3,4,5,6,7,8,9]);
  const solution=base.solution.map(r=>r.map(v=>map[v-1])),puzzle=puzzleDigits.map(r=>r.map(v=>v?map[v-1]:0));
- return {puzzle,solution,values:cloneGrid(puzzle),candidates:Array.from({length:9},()=>Array.from({length:9},()=>[])),chords,selected:40,block:4,strict:false,sudokuLevel,chordLevel,started:Date.now(),elapsed:0,timerPaused:false,errors:0,hints:0,undos:0,redos:0,plays:0,history:[],redoStack:[],wrong:[],checked:false,won:false}
+ return {puzzle,solution,values:cloneGrid(puzzle),candidates:Array.from({length:9},()=>Array.from({length:9},()=>[])),chords,selected:40,block:4,strict:false,sudokuLevel,chordLevel,started:Date.now(),elapsed:0,timerPaused:false,errors:0,hints:0,undos:0,redos:0,plays:0,history:[],redoStack:[],wrong:[],immediateWrong:[],checked:false,won:false}
 }
 function levelForClues(grid){const n=clueCount(grid);return n>=39?'easy':n>=33?'medium':n>=28?'hard':'terrible'}
 function ensureSavedGame(x){
@@ -93,6 +93,7 @@ function ensureSavedGame(x){
  if(!Array.isArray(x.redoStack))x.redoStack=[];
  if(!Array.isArray(x.history))x.history=[];else x.history=x.history.map(s=>{try{return typeof s==='string'?JSON.parse(s):s}catch{return null}}).filter(s=>s?.values?.length===9&&s?.candidates?.length===9);
  if(!Array.isArray(x.candidates))x.candidates=Array.from({length:9},()=>Array.from({length:9},()=>[]));
+ if(!Array.isArray(x.immediateWrong))x.immediateWrong=[];
  if(!Number.isInteger(x.block))x.block=Math.floor(x.selected/27)*3+Math.floor((x.selected%9)/3);
  return x
 }
@@ -112,7 +113,7 @@ function render(){
   const br=(block/3|0)*3,bc=block%3*3,cells=[];
   for(let rr=0;rr<3;rr++)for(let cc=0;cc<3;cc++){
    const r=br+rr,c=bc+cc,value=game.values[r][c],i=r*9+c,given=!!game.puzzle[r][c],selectedCell=i===selected,related=r===sr||c===sc||((r/3|0)===(sr/3|0)&&(c/3|0)===(sc/3|0)),local=rr*3+cc,cellColor=value?(counts[value-1]>=9?'#929292':CHORD_COLORS[value-1]):'';
-   cells.push('<button class="cell '+(given?'given ':'')+(selectedCell?'selected ':'')+(!selectedCell&&related?'related ':'')+(game.wrong.includes(i)?'error':'')+'" data-i="'+i+'"'+(value?' data-value="'+value+'" style="--chord-color:'+cellColor+';--chord-bg:'+cellColor+'28;--chord-selected-bg:'+cellColor+'40"':'')+'>'+(value?'<span class="value'+(chordName(value).length>3?' long-label':'')+'">'+chordName(value)+'</span>':'<span class="pencil">'+Array.from({length:9},(_,k)=>{const name=game.candidates[r][c].includes(k+1)?chordName(k+1):'',candidateColor=counts[k]>=9?'#929292':CHORD_COLORS[k];return '<span class="candidate-color'+(name.length>3?' long-label':'')+'" style="--chord-color:'+candidateColor+'">'+name+'</span>'}).join('')+'</span>')+'<span class="cell-key">'+(local+1)+'</span></button>')
+   cells.push('<button class="cell '+(given?'given ':'')+(selectedCell?'selected ':'')+(!selectedCell&&related?'related ':'')+((game.wrong.includes(i)||(game.immediateWrong||[]).includes(i))?'error':'')+'" data-i="'+i+'"'+(value?' data-value="'+value+'" style="--chord-color:'+cellColor+';--chord-bg:'+cellColor+'28;--chord-selected-bg:'+cellColor+'40"':'')+'>'+(value?'<span class="value'+(chordName(value).length>3?' long-label':'')+'">'+chordName(value)+'</span>':'<span class="pencil">'+Array.from({length:9},(_,k)=>{const name=game.candidates[r][c].includes(k+1)?chordName(k+1):'',candidateColor=counts[k]>=9?'#929292':CHORD_COLORS[k];return '<span class="candidate-color'+(name.length>3?' long-label':'')+'" style="--chord-color:'+candidateColor+'">'+name+'</span>'}).join('')+'</span>')+'<span class="cell-key">'+(local+1)+'</span></button>')
   }
   return '<div class="board-block"><span class="block-label'+(block===activeBlock?' active':'')+'">'+NAV[block][0]+'</span>'+cells.join('')+'</div>'
  }).join('');
@@ -135,25 +136,25 @@ function previewChord(index,on){
  document.querySelectorAll('.piano-key').forEach(key=>{if(chord.notes.includes(+key.dataset.note))key.classList.toggle('preview-lit',on)});
  document.querySelectorAll('.cell[data-value]').forEach(cell=>cell.classList.toggle('chord-preview',on&&+cell.dataset.value===index))
 }
-function snapshot(){return {values:cloneGrid(game.values),candidates:game.candidates.map(r=>r.map(a=>a.slice()))}}
+function snapshot(){return {values:cloneGrid(game.values),candidates:game.candidates.map(r=>r.map(a=>a.slice())),immediateWrong:(game.immediateWrong||[]).slice()}}
 function pushHistory(){game.history.push(snapshot());game.redoStack=[]}
-function restore(s){game.values=cloneGrid(s.values);game.candidates=s.candidates.map(r=>r.map(a=>a.slice()));game.wrong=[];save();render()}
+function restore(s){game.values=cloneGrid(s.values);game.candidates=s.candidates.map(r=>r.map(a=>a.slice()));game.immediateWrong=Array.isArray(s.immediateWrong)?s.immediateWrong.slice():[];game.wrong=[];save();render()}
 function commit(value){
  if(game.won)return;
  const i=game.selected,r=i/9|0,c=i%9,current=game.values[r][c],removing=pedal&&current===value;
  if(game.puzzle[r][c])return toast('Эта клетка задана в начале партии');
  if(!pedal&&current)return toast('В клетке уже есть ответ. Удерживай педаль и повтори его, чтобы удалить.');
- if(game.strict&&!removing&&game.solution[r][c]!==value){game.errors++;game.plays++;game.wrong=[i];toast('Этот аккорд не подходит выбранной клетке');save();render();return}
+ const invalidAnswer=pedal&&game.strict&&!removing&&game.solution[r][c]!==value;
  pushHistory();game.plays++;game.wrong=[];
  if(pedal){
-  if(removing){game.values[r][c]=0;game.candidates[r][c]=[];toast('Аккорд удалён из клетки')}
-  else{game.values[r][c]=value;game.candidates[r][c]=[];for(let n=0;n<81;n++){const rr=n/9|0,cc=n%9;if(n!==i&&(rr===r||cc===c||((rr/3|0)===(r/3|0)&&(cc/3|0)===(c/3|0))))game.candidates[rr][cc]=game.candidates[rr][cc].filter(x=>x!==value)}}
+  if(removing){game.values[r][c]=0;game.candidates[r][c]=[];game.immediateWrong=game.immediateWrong.filter(x=>x!==i);toast('Аккорд удалён из клетки')}
+  else{game.values[r][c]=value;game.candidates[r][c]=[];game.immediateWrong=game.immediateWrong.filter(x=>x!==i);if(invalidAnswer){game.immediateWrong.push(i);game.errors++;toast('Неверный ответ оставлен в клетке и отмечен красным')}for(let n=0;n<81;n++){const rr=n/9|0,cc=n%9;if(n!==i&&(rr===r||cc===c||((rr/3|0)===(r/3|0)&&(cc/3|0)===(c/3|0))))game.candidates[rr][cc]=game.candidates[rr][cc].filter(x=>x!==value)}}
  }else{const a=game.candidates[r][c];game.candidates[r][c]=a.includes(value)?a.filter(x=>x!==value):[...a,value].sort((a,b)=>a-b)}
  save();render()
 }
 function undo(){if(!game.history.length)return toast('Нечего отменять');game.redoStack.push(snapshot());game.undos++;restore(game.history.pop())}
 function redo(){if(!game.redoStack.length)return toast('Нечего повторять');game.history.push(snapshot());game.redos++;restore(game.redoStack.pop())}
-function clearCell(){const i=game.selected,r=i/9|0,c=i%9;if(game.puzzle[r][c])return toast('Исходную клетку нельзя очистить');if(!game.values[r][c]&&!game.candidates[r][c].length)return;pushHistory();game.values[r][c]=0;game.candidates[r][c]=[];game.wrong=[];save();render()}
+function clearCell(){const i=game.selected,r=i/9|0,c=i%9;if(game.puzzle[r][c])return toast('Исходную клетку нельзя очистить');if(!game.values[r][c]&&!game.candidates[r][c].length)return;pushHistory();game.values[r][c]=0;game.candidates[r][c]=[];game.immediateWrong=game.immediateWrong.filter(x=>x!==i);game.wrong=[];save();render()}
 function candidatesFor(values,r,c){const used=new Set();for(let i=0;i<9;i++){if(values[r][i])used.add(values[r][i]);if(values[i][c])used.add(values[i][c])}const br=(r/3|0)*3,bc=(c/3|0)*3;for(let rr=br;rr<br+3;rr++)for(let cc=bc;cc<bc+3;cc++)if(values[rr][cc])used.add(values[rr][cc]);return [1,2,3,4,5,6,7,8,9].filter(v=>!used.has(v))}
 function sudokuUnits(){
  const units=[];for(let r=0;r<9;r++)units.push({label:'строке '+(r+1),cells:Array.from({length:9},(_,c)=>r*9+c)});
@@ -183,7 +184,7 @@ function hint(){
 function check(){
  if(game.won)return;const empty=game.values.flat().filter(x=>!x).length;if(empty)return toast('Заполни ещё '+empty+' клеток перед проверкой');
  const wrong=[];game.values.forEach((row,r)=>row.forEach((v,c)=>{if(v!==game.solution[r][c])wrong.push(r*9+c)}));game.checked=true;game.wrong=wrong;
- if(wrong.length){game.errors+=wrong.length;toast('Найдено ошибок: '+wrong.length+'. Исправь подсвеченные клетки и проверь снова.')}
+ if(wrong.length){const alreadyCounted=new Set(game.immediateWrong||[]);game.errors+=wrong.filter(i=>!alreadyCounted.has(i)).length;toast('Найдено ошибок: '+wrong.length+'. Исправь подсвеченные клетки и проверь снова.')}
  else{game.elapsed=duration();game.timerPaused=true;game.won=true;game.score=Math.max(0,10000-game.elapsed*2-game.errors*180-game.hints*250-game.undos*25);game.bestScore=Math.max(game.score,+(localStorage.getItem(BEST)||0));winModalDismissed=false;localStorage.removeItem(STORE);if(game.score>+(localStorage.getItem(BEST)||0))localStorage.setItem(BEST,game.score)}
  render()
 }
@@ -212,7 +213,7 @@ function renderModal(){
 }
 function confirmNew(){openNewGameSettings({})}
 function settings(){
- modal('<h2>Управление MIDI</h2><p>Сейчас: судоку — '+sudokuName(game.sudokuLevel)+'; аккорды — '+sudokuName(game.chordLevel)+'.</p><p>Без педали ноты До–Соль♯ выбирают блоки 1–9. При удержании педали они выбирают клетки 1–9 внутри выбранного блока. Три быстрых До — Undo, Ре — Redo, Соль — очистить выбранную клетку.</p><p>Перед распознаванием одиночной ноты приложение ждёт остальные ноты аккорда. MIDI работает на защищённой HTTPS-странице в браузерах с Web MIDI.</p><div class="setting-row"><span>Мгновенная проверка</span><button class="toggle '+(game.strict?'on':'')+'" id="instantToggle" aria-label="Мгновенная проверка"></button></div><div class="setting-row"><span>Не выключать экран</span><button class="toggle '+(wakeEnabled?'on':'')+'" id="wakeToggle" aria-label="Не выключать экран"'+(!navigator.wakeLock?' disabled':'')+'></button></div><p id="wakeStatus" class="wake-status"></p><div class="dialog-actions"><button class="btn primary" id="settingsDone">Готово</button></div>');
+ modal('<h2>Управление MIDI</h2><p>Сейчас: судоку — '+sudokuName(game.sudokuLevel)+'; аккорды — '+sudokuName(game.chordLevel)+'.</p><p>Без педали ноты До–Соль♯ выбирают блоки 1–9. При удержании педали они выбирают клетки 1–9 внутри выбранного блока. Три быстрых До — Undo, Ре — Redo, Соль — очистить выбранную клетку.</p><p>Перед распознаванием одиночной ноты приложение ждёт остальные ноты аккорда. MIDI работает на защищённой HTTPS-странице в браузерах с Web MIDI.</p><div class="setting-row"><span>Подсветка ошибок при вводе</span><button class="toggle '+(game.strict?'on':'')+'" id="instantToggle" aria-label="Подсветка ошибок при вводе"></button></div><div class="setting-row"><span>Не выключать экран</span><button class="toggle '+(wakeEnabled?'on':'')+'" id="wakeToggle" aria-label="Не выключать экран"'+(!navigator.wakeLock?' disabled':'')+'></button></div><p id="wakeStatus" class="wake-status"></p><div class="dialog-actions"><button class="btn primary" id="settingsDone">Готово</button></div>');
  $('#instantToggle').onclick=()=>{game.strict=!game.strict;$('#instantToggle').classList.toggle('on',game.strict);save()};$('#wakeToggle').onclick=()=>setWakeLockEnabled(!wakeEnabled);$('#settingsDone').onclick=()=>render();refreshWakeLockUI()
 }
 function selectPitch(pc){
