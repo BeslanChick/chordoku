@@ -37,4 +37,13 @@ body{background:#111;font-family:Arial,system-ui,sans-serif}
 .piano{width:100%;height:clamp(64px,11vh,102px);position:relative;overflow:hidden;border:1px solid #555;border-radius:0 0 4px 4px;background:#090909;box-shadow:none}.piano-key{position:absolute;top:0;display:block;transition:background-color .08s}.white-key{height:100%;width:calc(100% / 52);background:#dedede;border-right:1px solid #777;border-bottom:2px solid #888}.black-key{height:62%;width:calc(100% / 52 * .64);background:#202020;border:1px solid #050505;border-top:0;border-radius:0 0 2px 2px;z-index:2}.piano-key.lit{background:var(--lime)}.piano-key.preview-lit{background:#f0a34a!important;box-shadow:none}.piano-label{text-align:center;color:#777;text-transform:uppercase;letter-spacing:1px;font-size:8px;margin:0}.notice{z-index:8}
 @media(max-width:950px){.shell{height:auto;min-height:100dvh;overflow:visible}.board-stage{flex:none;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto auto;gap:9px}.board-wrap{grid-column:1/-1;grid-row:1}.guide-panel{grid-column:1;grid-row:2}.reference-panel{grid-column:2;grid-row:2}.board{width:min(74vw,58vh,620px)}.piano-area{flex:none}.controlbar{flex-wrap:wrap}.controlbar .progress-stat{margin-right:0}}
 @media(max-width:600px){.shell{padding:8px;gap:7px}.controlbar{gap:4px;min-height:0}.controlbar .stat{min-width:55px}.controlbar .btn{font-size:9px;padding:5px}.board-stage{grid-template-columns:1fr;grid-template-rows:auto auto auto}.board-wrap{grid-column:1;grid-row:1}.guide-panel{grid-column:1;grid-row:2}.reference-panel{grid-column:1;grid-row:3}.guide-list{grid-template-columns:repeat(3,1fr)}.guide-shortcuts{grid-template-columns:1fr auto 1fr auto 1fr auto}.board{width:min(92vw,58vh)}.reference-panel{max-height:240px}.piano{height:clamp(48px,9vh,75px)}.live-chord strong{font-size:19px}.input-row{justify-content:space-between}}
-</style></head><body><div id="app"></div><script src="app.js?v=20261102-chordoku-iteration2c"></script></body></html>
+</style><style>
+.controlbar{justify-content:flex-start}
+.brand-logo{display:block;width:126px;max-height:24px;height:auto;object-fit:contain;flex:none;margin-right:8px}
+.reference-chord{grid-template-columns:22px minmax(0,1fr) 30px}
+.cell.chord-preview{background:#3a3025!important;outline:1px solid #f0a34a;z-index:2}
+.cell.chord-preview .value{color:#f0a34a}
+.difficulty-row{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:10px;padding:10px;border:1px solid #333;border-radius:6px;color:#ccc}
+.difficulty-row select{min-width:132px;padding:7px 9px;border:1px solid #444;border-radius:5px;background:#252525;color:var(--text)}
+@media(max-width:600px){.brand-logo{width:102px;max-height:20px;margin-right:3px}.guide-shortcuts{grid-template-columns:1fr auto 1fr auto}}
+</style></head><body><div id="app"></div><script src="app.js?v=20261102-chordoku-iteration3"></script></body></html>

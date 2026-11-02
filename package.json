@@ -1,0 +1,35 @@
+{
+  "name": "chordoku",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Судоку 9×9 из музыкальных аккордов",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "serve": "node serve.js",
+    "dist:mac": "electron-builder --mac dmg zip",
+    "dist:win": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^35.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.chordoku.desktop",
+    "productName": "Chordoku",
+    "files": [
+      "index.html",
+      "app.js",
+    "logo.svg",
+      "main.cjs",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.games",
+      "target": ["dmg", "zip"]
+    },
+    "win": {
+      "target": ["nsis"]
+    }
+  }
+}
