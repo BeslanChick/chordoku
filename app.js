@@ -200,7 +200,7 @@ function openNewGameSettings(options={}){
 }
 function renderModal(){
  if(game?.won){
-  if(winModalDismissed)return;
+  if(winModalDismissed){$('#modal').innerHTML='';return}
   const score=Number(game.score)||0,best=Number(game.bestScore)||score;
   const sparks=[];for(let burst=0;burst<2;burst++)for(let i=0;i<18;i++){const angle=(Math.PI*2*i/18)+(burst*.12),distance=35+(i%4)*13,left=burst?76:24,top=burst?25:34;sparks.push('<i class="firework-particle" style="left:'+left+'%;top:'+top+'%;--dx:'+Math.cos(angle)*distance+'px;--dy:'+Math.sin(angle)*distance+'px;--spark:'+CHORD_COLORS[(i+burst*4)%CHORD_COLORS.length]+';--delay:'+(burst*.14)+'s"></i>')}
   modal('<div class="fireworks" aria-hidden="true">'+sparks.join('')+'</div><div class="win-mark" aria-hidden="true">✦</div><h2>Поздравляем!</h2><p class="win-copy">Ты прошёл эту партию. Отличная работа!</p><div class="result-grid"><span>Сложность судоку</span><b>'+sudokuName(game.sudokuLevel)+'</b><span>Сложность аккордов</span><b>'+sudokuName(game.chordLevel)+'</b><span>Результат</span><b>'+score.toLocaleString('ru-RU')+' очков</b><span>Время</span><b>'+fmt(game.elapsed)+'</b><span>Ошибки · подсказки</span><b>'+game.errors+' · '+game.hints+'</b><span>Отмены · повторы</span><b>'+game.undos+' · '+game.redos+'</b><span>Лучший результат</span><b>'+best.toLocaleString('ru-RU')+'</b></div><div class="dialog-actions"><button class="btn" id="modalReview">Посмотреть поле</button><button class="btn primary" id="modalContinue">Продолжить</button></div>','win-dialog');
