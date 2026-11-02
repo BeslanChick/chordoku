@@ -8,7 +8,7 @@ const SUDOKU_LEVELS=[
  {id:'terrible',label:'Страшная',range:[24,27]}
 ];
 const CHORD_LEVELS=SUDOKU_LEVELS;
-const CHORD_COLORS=['#d8b978','#93b9dc','#b7a2d4','#d39eac','#d7a789','#8fb9ca','#c6adcf','#d0a1ba','#9eaccb'];
+const CHORD_COLORS=['#f28b82','#ffb86b','#f0d36d','#8ecf82','#63c6c2','#7eacf2','#9990e8','#c28bdf','#e68db8'];
 const QUALITIES=[
  {id:'major',suffix:'',tier:0,intervals:[0,4,7],kind:'major'},
  {id:'minor',suffix:'m',tier:0,intervals:[0,3,7],kind:'minor'},
@@ -111,12 +111,12 @@ function render(){
  const board=Array.from({length:9},(_,block)=>{
   const br=(block/3|0)*3,bc=block%3*3,cells=[];
   for(let rr=0;rr<3;rr++)for(let cc=0;cc<3;cc++){
-   const r=br+rr,c=bc+cc,value=game.values[r][c],i=r*9+c,given=!!game.puzzle[r][c],selectedCell=i===selected,related=r===sr||c===sc||((r/3|0)===(sr/3|0)&&(c/3|0)===(sc/3|0)),local=rr*3+cc;
-   cells.push('<button class="cell '+(given?'given ':'')+(selectedCell?'selected ':'')+(!selectedCell&&related?'related ':'')+(game.wrong.includes(i)?'error':'')+'" data-i="'+i+'"'+(value?' data-value="'+value+'" style="--chord-color:'+CHORD_COLORS[value-1]+';--chord-bg:'+CHORD_COLORS[value-1]+'28;--chord-selected-bg:'+CHORD_COLORS[value-1]+'40"':'')+'>'+(value?'<span class="value'+(chordName(value).length>3?' long-label':'')+'">'+chordName(value)+'</span>':'<span class="pencil">'+Array.from({length:9},(_,k)=>{const name=game.candidates[r][c].includes(k+1)?chordName(k+1):'';return '<span class="candidate-color'+(name.length>3?' long-label':'')+'" style="--chord-color:'+CHORD_COLORS[k]+'">'+name+'</span>'}).join('')+'</span>')+'<span class="cell-key">'+(local+1)+'</span></button>')
+   const r=br+rr,c=bc+cc,value=game.values[r][c],i=r*9+c,given=!!game.puzzle[r][c],selectedCell=i===selected,related=r===sr||c===sc||((r/3|0)===(sr/3|0)&&(c/3|0)===(sc/3|0)),local=rr*3+cc,cellColor=value?(counts[value-1]>=9?'#929292':CHORD_COLORS[value-1]):'';
+   cells.push('<button class="cell '+(given?'given ':'')+(selectedCell?'selected ':'')+(!selectedCell&&related?'related ':'')+(game.wrong.includes(i)?'error':'')+'" data-i="'+i+'"'+(value?' data-value="'+value+'" style="--chord-color:'+cellColor+';--chord-bg:'+cellColor+'28;--chord-selected-bg:'+cellColor+'40"':'')+'>'+(value?'<span class="value'+(chordName(value).length>3?' long-label':'')+'">'+chordName(value)+'</span>':'<span class="pencil">'+Array.from({length:9},(_,k)=>{const name=game.candidates[r][c].includes(k+1)?chordName(k+1):'',candidateColor=counts[k]>=9?'#929292':CHORD_COLORS[k];return '<span class="candidate-color'+(name.length>3?' long-label':'')+'" style="--chord-color:'+candidateColor+'">'+name+'</span>'}).join('')+'</span>')+'<span class="cell-key">'+(local+1)+'</span></button>')
   }
   return '<div class="board-block"><span class="block-label'+(block===activeBlock?' active':'')+'">'+NAV[block][0]+'</span>'+cells.join('')+'</div>'
  }).join('');
- const chordRows=game.chords.map((chord,i)=>'<button class="reference-chord" data-chord="'+(i+1)+'" style="--chord-color:'+CHORD_COLORS[i]+';--chord-bg:'+CHORD_COLORS[i]+'18"><span class="reference-index">'+(i+1)+'</span><strong>'+chord.label+'</strong><span class="reference-count">'+counts[i]+'</span></button>').join('');
+ const chordRows=game.chords.map((chord,i)=>{const completed=counts[i]>=9,color=completed?'#929292':CHORD_COLORS[i];return '<button class="reference-chord'+(completed?' completed':'')+'" data-chord="'+(i+1)+'" style="--chord-color:'+color+';--chord-bg:'+color+'18"><span class="reference-index">'+(i+1)+'</span><strong>'+chord.label+'</strong><span class="reference-count">'+counts[i]+'</span></button>'}).join('');
  const notes=[...held].sort((a,b)=>a-b).map(midiName).join(' · ');
  const keyNotes=Array.from({length:88},(_,i)=>i+21).map(n=>{const pc=n%12,black=[1,3,6,8,10].includes(pc),lit=held.has(n);return '<i class="piano-key '+(black?'black-key':'white-key')+(lit?' lit':'')+'" data-note="'+n+'" style="left:'+(black?whiteKeyIndex(n)*100/52-100/52*.32:whiteKeyIndex(n)*100/52)+'%" title="'+midiName(n)+'"></i>'}).join('');
  const logo='<img class="brand-logo" src="logo.svg" alt="Chordoku">';
